@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ラジオ聴取管理 version4.5 (オフライン対応強化)</title>
+<title>ラジオ聴取管理 version4.6 (オフライン強制遮断)</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0078ff">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
@@ -80,7 +80,7 @@ input[type=checkbox] { transform: scale(1.2); margin-right: 5px; }
 </div>
 <header>
   <h1>ラジオ聴取管理</h1>
-  <p>version4.5 (オフライン対応強化)</p>
+  <p>version4.6 (オフライン強制遮断)</p>
 </header>
 <main>
   <button onclick="updateList()">今日の更新分を追加（手動）</button>
@@ -216,12 +216,6 @@ if ('serviceWorker' in navigator) {
     .then(reg => console.log('Service Worker registered', reg))
     .catch(err => console.log('Service Worker registration failed', err));
 }
-</script>
-<script>
-// オフライン検出 → 強制的にoffline.htmlへ
-window.addEventListener("offline", () => {
-  window.location.href = "offline.html";
-});
 </script>
 </body>
 </html>
