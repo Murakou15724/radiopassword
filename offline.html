@@ -1,23 +1,47 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>オフライン</title>
-  <style>
-    body { 
-      display:flex; justify-content:center; align-items:center; 
-      height:100vh; margin:0; font-family:sans-serif; background:#f3f4f6; color:#333; 
-    }
-    .box { text-align:center; }
-    h1 { font-size:2em; margin-bottom:10px; }
-    p { font-size:1.2em; color:#555; }
-  </style>
-</head>
-<body>
-  <div class="box">
-    <h1>オフラインです</h1>
-    <p>インターネットに接続して再読み込みしてください</p>
-  </div>
-</body>
-</html>
+const CACHE_NAME = "radio-cache-v3";
+const OFFLINE_URL = "./offline.html";
+const FILES_TO_CACHE = [
+  "./",
+  "./index.html",
+  "./manifest.json",
+  "./offline.html",
+  "./icon-192.png",
+  "./icon-512.png"
+];
+
+self.addEventListener("install", event => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(cache => cache.addAll(FILES_TO_CACHE))
+  );
+  self.skipWaiting();
+});
+
+self.addEventListener("activate", event => {
+  event.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key)))
+    )
+  );
+  self.clients.claim();
+});
+
+self.addEventListener("fetch", event => {
+  if (event.request.method !== "GET") return;
+
+  event.respondWith(
+    fetch(event.request)
+      .then(response => {
+        const cloned = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(event.request, cloned));
+        return response;
+      })
+      .catch(() => {
+        // HTMLページのときは offline.html を返す
+        if (event.request.destination === "document") {
+          return caches.match(OFFLINE_URL);
+        }
+        // その他はキャッシュか offline.html
+        return caches.match(event.request).then(res => res || caches.match(OFFLINE_URL));
+      })
+  );
+});
