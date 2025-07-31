@@ -2,9 +2,9 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>ラジオ聴取管理（全端末共有・パスワード保護版）</title>
+<title>ラジオ聴取管理（全端末共有・パスワード保護版） version3.1</title>
 <style>
-body { font-family: sans-serif; margin: 20px; display: none; } /* 初期は非表示 */
+body { font-family: sans-serif; margin: 20px; display: none; }
 button { margin: 5px; padding: 5px 10px; }
 #listsContainer { display:flex; gap:40px; margin-top:20px; }
 #list, #missed, #history { margin-top: 10px; }
@@ -14,22 +14,23 @@ input[type=checkbox] { transform: scale(1.2); margin-right: 5px; }
 .warn { color: red; font-weight: bold; }
 .listBlock { width:45%; }
 
-/* ===== スマホ向けレスポンシブ対応 ===== */
+/* --- スマホ対応 --- */
 @media (max-width: 768px) {
   #listsContainer {
     flex-direction: column;   /* 縦に並べる */
-    gap: 20px;
+    gap: 20px;                /* 縦の余白 */
   }
   .listBlock {
-    width: 100%;             /* 横幅いっぱいに */
+    width: 100%;             /* 横幅いっぱい */
   }
   body {
-    font-size: 16px;          /* 読みやすい文字サイズ */
+    font-size: 16px;
     margin: 10px;
   }
   button {
-    width: 100%;              /* ボタンを画面幅に合わせる */
+    width: 100%;             /* ボタンを画面幅に合わせる */
     box-sizing: border-box;
+    font-size: 1rem;
   }
   ul {
     padding-left: 20px;
@@ -38,7 +39,7 @@ input[type=checkbox] { transform: scale(1.2); margin-right: 5px; }
 </style>
 </head>
 <body>
-<h1>ラジオ聴取管理　version3.0（全端末共有・パスワード保護）</h1>
+<h1>ラジオ聴取管理　version3.1（全端末共有・パスワード保護）</h1>
 
 <button onclick="updateList()">今日の更新分を追加（手動）</button>
 <br><br>
@@ -145,7 +146,7 @@ function saveData() {
     setDoc(sharedDoc, { unlistened, missedList, todayHistory });
 }
 
-// ======== 番組更新ロジック（既存のまま） ========
+// ======== 番組更新ロジック ========
 function getNextReleaseDate(program, fromDate = new Date()) {
     let testDate = new Date(fromDate);
     for(let i=0; i<28; i++){
