@@ -1,12 +1,12 @@
-const CACHE_NAME = "radio-cache-v2";
-const OFFLINE_URL = "offline.html";
+const CACHE_NAME = "radio-cache-v4";
+const OFFLINE_URL = "./offline.html";
 const FILES_TO_CACHE = [
-  "/",
-  "/index.html",
-  "/manifest.json",
-  "/offline.html",
-  "/icon-192.png",
-  "/icon-512.png"
+  "./",
+  "./index.html",
+  "./manifest.json",
+  "./offline.html",
+  "./icon-192.png",
+  "./icon-512.png"
 ];
 
 self.addEventListener("install", event => {
@@ -36,6 +36,10 @@ self.addEventListener("fetch", event => {
         return response;
       })
       .catch(() => {
+        // HTMLページの場合は必ず offline.html を返す
+        if (event.request.destination === "document") {
+          return caches.match(OFFLINE_URL);
+        }
         return caches.match(event.request).then(res => res || caches.match(OFFLINE_URL));
       })
   );
