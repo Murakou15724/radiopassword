@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>ラジオ聴取管理（全端末共有・パスワード保護版） version3.1</title>
+<title>ラジオ聴取管理 version3.2（全端末共有・パスワード保護版）</title>
 <style>
 body { font-family: sans-serif; margin: 20px; display: none; }
 button { margin: 5px; padding: 5px 10px; }
@@ -14,32 +14,41 @@ input[type=checkbox] { transform: scale(1.2); margin-right: 5px; }
 .warn { color: red; font-weight: bold; }
 .listBlock { width:45%; }
 
-/* --- スマホ対応 --- */
+/* --- スマホ対応（縦レイアウト＋文字/ボタン大きめ） --- */
 @media (max-width: 768px) {
-  #listsContainer {
-    flex-direction: column;   /* 縦に並べる */
-    gap: 20px;                /* 縦の余白 */
-  }
-  .listBlock {
-    width: 100%;             /* 横幅いっぱい */
-  }
   body {
-    font-size: 16px;
+    font-size: 20px;      /* 大きめ文字 */
     margin: 10px;
   }
+  h1 {
+    font-size: 1.8em;     /* タイトルも大きめ */
+    line-height: 1.3;
+  }
+  #listsContainer {
+    flex-direction: column; /* 縦に並べる */
+    gap: 40px;              /* セクション間隔広め */
+  }
+  .listBlock {
+    width: 100%;           /* 横幅いっぱい */
+  }
   button {
-    width: 100%;             /* ボタンを画面幅に合わせる */
+    width: 100%;
+    font-size: 1.2em;
+    padding: 15px;
     box-sizing: border-box;
-    font-size: 1rem;
   }
   ul {
-    padding-left: 20px;
+    padding-left: 25px;
   }
 }
 </style>
 </head>
 <body>
-<h1>ラジオ聴取管理　version3.1（全端末共有・パスワード保護）</h1>
+<h1>
+  ラジオ聴取管理<br>
+  version3.2<br>
+  （全端末共有・パスワード保護）
+</h1>
 
 <button onclick="updateList()">今日の更新分を追加（手動）</button>
 <br><br>
@@ -65,10 +74,11 @@ input[type=checkbox] { transform: scale(1.2); margin-right: 5px; }
     <h2>聞き逃しリスト</h2>
     <ul id="missed"></ul>
   </div>
+  <div class="listBlock">
+    <h2>今日の聴取履歴</h2>
+    <ul id="history"></ul>
+  </div>
 </div>
-
-<h2>今日の聴取履歴</h2>
-<ul id="history"></ul>
 
 <script type="module">
 // ======== パスワード設定 ========
