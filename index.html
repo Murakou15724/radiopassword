@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ラジオ聴取管理 version4.4-PWA</title>
+<title>ラジオ聴取管理 version4.5 (オフライン対応強化)</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0078ff">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
@@ -17,111 +17,53 @@ body {
   overflow-x: hidden;
   animation: fadeIn 1s ease-in;
 }
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-header {
-  text-align: center;
-  padding: 50px 20px 30px;
-}
-header h1 {
-  font-size: 2.4em;
-  margin: 0;
-  font-weight: 700;
-}
-header p {
-  margin: 8px 0 0;
-  font-size: 1.1em;
-  color: #555;
-}
-main {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 20px;
-}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+header { text-align: center; padding: 50px 20px 30px; }
+header h1 { font-size: 2.4em; margin: 0; font-weight: 700; }
+header p { margin: 8px 0 0; font-size: 1.1em; color: #555; }
+main { max-width: 1200px; margin: 0 auto; padding: 20px; }
 button {
   margin: 5px 0;
   padding: 14px 22px;
   border: none;
   border-radius: 8px;
   background: linear-gradient(135deg, #0078ff, #005fcc);
-  color: #fff;
-  font-size: 1em;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  width: 100%;
+  color: #fff; font-size: 1em;
+  cursor: pointer; transition: all 0.3s ease; width: 100%;
   box-shadow: 0 4px 10px rgba(0,0,0,0.2);
 }
-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 14px rgba(0,0,0,0.25);
-}
+button:hover { transform: translateY(-2px); box-shadow: 0 6px 14px rgba(0,0,0,0.25); }
 .card {
-  flex: 1;
-  background: #fff;
-  border-radius: 16px;
+  flex: 1; background: #fff; border-radius: 16px;
   box-shadow: 0 6px 20px rgba(0,0,0,0.15);
-  padding: 20px;
-  transform: translateY(10px);
-  opacity: 0;
+  padding: 20px; transform: translateY(10px); opacity: 0;
   animation: slideUp 0.7s ease forwards;
 }
 .card:nth-child(1){ animation-delay:0.1s; }
 .card:nth-child(2){ animation-delay:0.2s; }
 .card:nth-child(3){ animation-delay:0.3s; }
-@keyframes slideUp {
-  to { transform: translateY(0); opacity: 1; }
-}
-.card h2 {
-  margin-top: 0;
-  border-bottom: 2px solid #0078ff;
-  padding-bottom: 5px;
-}
-ul { padding-left: 20px; }
-li { margin: 8px 0; }
+@keyframes slideUp { to { transform: translateY(0); opacity: 1; } }
+.card h2 { margin-top: 0; border-bottom: 2px solid #0078ff; padding-bottom: 5px; }
+ul { padding-left: 20px; } li { margin: 8px 0; }
 input[type=checkbox] { transform: scale(1.2); margin-right: 5px; }
 .warn { color: red; font-weight: bold; }
 #listsContainer { display: flex; gap: 40px; margin-top: 20px; }
-@media (max-width: 768px) {
-  header h1 { font-size: 2em; }
-  button { font-size: 1.2em; padding: 16px; }
-  #listsContainer { flex-direction: column; gap: 20px; }
-}
+@media (max-width: 768px) { header h1 { font-size: 2em; } button { font-size: 1.2em; padding: 16px; } #listsContainer { flex-direction: column; gap: 20px; } }
 #passwordOverlay {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  background: rgba(0, 0, 0, 0.85);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 9999;
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.85); display: flex; justify-content: center; align-items: center; z-index: 9999;
 }
 .passwordBox {
-  background: #1e293b;
-  padding: 40px 30px;
-  border-radius: 12px;
-  width: 320px;
-  text-align: center;
-  color: #fff;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.5);
-  animation: fadeInScale 0.5s ease;
+  background: #1e293b; padding: 40px 30px; border-radius: 12px; width: 320px;
+  text-align: center; color: #fff; box-shadow: 0 8px 30px rgba(0,0,0,0.5); animation: fadeInScale 0.5s ease;
 }
 .passwordBox h2 { margin-top: 0; font-size: 1.5em; }
-.passwordBox input {
-  width: 100%; padding: 12px; margin: 20px 0 10px;
-  font-size: 1em; border: none; border-radius: 6px;
-}
+.passwordBox input { width: 100%; padding: 12px; margin: 20px 0 10px; font-size: 1em; border: none; border-radius: 6px; }
 .passwordBox button {
-  width: 100%; padding: 12px; font-size: 1em;
-  background: linear-gradient(135deg,#0078ff,#005fcc);
+  width: 100%; padding: 12px; font-size: 1em; background: linear-gradient(135deg,#0078ff,#005fcc);
   border: none; border-radius: 6px; color: #fff; cursor: pointer; transition: 0.3s;
 }
-.passwordBox button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 14px rgba(0,0,0,0.25);
-}
+.passwordBox button:hover { transform: translateY(-2px); box-shadow: 0 6px 14px rgba(0,0,0,0.25); }
 #passError { color: #f87171; font-size: 0.9em; min-height: 1.2em; }
 @keyframes fadeInScale { from { opacity:0; transform: scale(0.9);} to { opacity:1; transform: scale(1);} }
 </style>
@@ -138,7 +80,7 @@ input[type=checkbox] { transform: scale(1.2); margin-right: 5px; }
 </div>
 <header>
   <h1>ラジオ聴取管理</h1>
-  <p>version4.4-PWA</p>
+  <p>version4.5 (オフライン対応強化)</p>
 </header>
 <main>
   <button onclick="updateList()">今日の更新分を追加（手動）</button>
@@ -157,7 +99,6 @@ input[type=checkbox] { transform: scale(1.2); margin-right: 5px; }
   </div>
 </main>
 <script type="module">
-// === パスワード認証・Firebase関連（version4.3.1と同じ） ===
 const ACCESS_PASSWORD = "Radio";
 const overlay = document.getElementById("passwordOverlay");
 const passInput = document.getElementById("passwordInput");
@@ -165,6 +106,7 @@ const passBtn = document.getElementById("passwordBtn");
 const passError = document.getElementById("passError");
 passBtn.addEventListener("click", checkPassword);
 passInput.addEventListener("keypress", e => { if(e.key === "Enter") checkPassword(); });
+
 function checkPassword() {
   if (passInput.value === ACCESS_PASSWORD) {
     overlay.style.display = "none";
@@ -174,6 +116,7 @@ function checkPassword() {
     passInput.value = "";
   }
 }
+
 function initApp() {
   import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js").then(({ initializeApp })=>{
     import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js").then(({ getFirestore, doc, setDoc, onSnapshot })=>{
@@ -213,6 +156,7 @@ function initApp() {
         { name: "かふぇどうき", type: "evenWeek", weekday: 2, archiveWarnDays: 2 }
       ];
       let unlistened = [], missedList = [], todayHistory = [], historyDate = "";
+
       onSnapshot(sharedDoc, snapshot => {
         if (snapshot.exists()) {
           const data = snapshot.data();
@@ -232,6 +176,7 @@ function initApp() {
         }
         render();
       });
+
       function saveData(){ setDoc(sharedDoc, { unlistened, missedList, todayHistory, historyDate }); }
       function getNextReleaseDate(program, fromDate=new Date()){
         let testDate=new Date(fromDate);
