@@ -3,7 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ラジオ聴取管理 version4.3.1</title>
+<title>ラジオ聴取管理 version4.4-PWA</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0078ff">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
 <style>
 body {
@@ -38,7 +40,6 @@ main {
   margin: 0 auto;
   padding: 20px;
 }
-/* ボタン */
 button {
   margin: 5px 0;
   padding: 14px 22px;
@@ -56,7 +57,6 @@ button:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 14px rgba(0,0,0,0.25);
 }
-/* カード */
 .card {
   flex: 1;
   background: #fff;
@@ -83,13 +83,11 @@ li { margin: 8px 0; }
 input[type=checkbox] { transform: scale(1.2); margin-right: 5px; }
 .warn { color: red; font-weight: bold; }
 #listsContainer { display: flex; gap: 40px; margin-top: 20px; }
-/* スマホ対応 */
 @media (max-width: 768px) {
   header h1 { font-size: 2em; }
   button { font-size: 1.2em; padding: 16px; }
   #listsContainer { flex-direction: column; gap: 20px; }
 }
-/* --- パスワード画面 --- */
 #passwordOverlay {
   position: fixed;
   top: 0; left: 0;
@@ -138,10 +136,9 @@ input[type=checkbox] { transform: scale(1.2); margin-right: 5px; }
     <button id="passwordBtn">認証</button>
   </div>
 </div>
-
 <header>
   <h1>ラジオ聴取管理</h1>
-  <p>version4.3.1</p>
+  <p>version4.4-PWA</p>
 </header>
 <main>
   <button onclick="updateList()">今日の更新分を追加（手動）</button>
@@ -149,41 +146,35 @@ input[type=checkbox] { transform: scale(1.2); margin-right: 5px; }
   <button onclick="testUpdate()">テスト実行</button>
   <button onclick="confirmListened()">チェックした番組を聴取済みにする</button>
   <button onclick="toggleManual()">手動追加▼</button>
-
   <div id="manualSection" class="card" style="display:none;">
     <h3>番組一覧（非常用手動追加）</h3>
     <ul id="allPrograms"></ul>
   </div>
-
   <div id="listsContainer">
     <div class="card"><h2>未聴取リスト</h2><ul id="list"></ul></div>
     <div class="card"><h2>聞き逃しリスト</h2><ul id="missed"></ul></div>
     <div class="card"><h2>今日の聴取履歴</h2><ul id="history"></ul></div>
   </div>
 </main>
-
 <script type="module">
+// === パスワード認証・Firebase関連（version4.3.1と同じ） ===
 const ACCESS_PASSWORD = "Radio";
 const overlay = document.getElementById("passwordOverlay");
 const passInput = document.getElementById("passwordInput");
 const passBtn = document.getElementById("passwordBtn");
 const passError = document.getElementById("passError");
-
 passBtn.addEventListener("click", checkPassword);
 passInput.addEventListener("keypress", e => { if(e.key === "Enter") checkPassword(); });
-
 function checkPassword() {
   if (passInput.value === ACCESS_PASSWORD) {
     overlay.style.display = "none";
-    initApp();   // 認証後にメイン機能初期化
+    initApp();
   } else {
     passError.textContent = "パスワードが違います";
     passInput.value = "";
   }
 }
-
 function initApp() {
-  // ======== Firebase ========
   import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js").then(({ initializeApp })=>{
     import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js").then(({ getFirestore, doc, setDoc, onSnapshot })=>{
       const firebaseConfig = {
@@ -198,7 +189,6 @@ function initApp() {
       const app = initializeApp(firebaseConfig);
       const db = getFirestore(app);
       const sharedDoc = doc(db, "radioApp", "sharedData");
-      
       const programs = [
         { name: "リエラジ", type: "weekly", weekday: 2, archiveWarnDays: 2 },
         { name: "みらくら", type: "weekly", weekday: 7, archiveWarnDays: 2 },
@@ -223,7 +213,6 @@ function initApp() {
         { name: "かふぇどうき", type: "evenWeek", weekday: 2, archiveWarnDays: 2 }
       ];
       let unlistened = [], missedList = [], todayHistory = [], historyDate = "";
-
       onSnapshot(sharedDoc, snapshot => {
         if (snapshot.exists()) {
           const data = snapshot.data();
@@ -243,7 +232,6 @@ function initApp() {
         }
         render();
       });
-
       function saveData(){ setDoc(sharedDoc, { unlistened, missedList, todayHistory, historyDate }); }
       function getNextReleaseDate(program, fromDate=new Date()){
         let testDate=new Date(fromDate);
@@ -275,6 +263,13 @@ function initApp() {
       function isLastWeekday(date){const month=date.getMonth();const nextWeek=new Date(date);nextWeek.setDate(date.getDate()+7);return nextWeek.getMonth()!==month;}
     });
   });
+}
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js')
+    .then(reg => console.log('Service Worker registered', reg))
+    .catch(err => console.log('Service Worker registration failed', err));
 }
 </script>
 </body>
