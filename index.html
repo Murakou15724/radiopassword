@@ -13,6 +13,28 @@ li { margin: 5px 0; }
 input[type=checkbox] { transform: scale(1.2); margin-right: 5px; }
 .warn { color: red; font-weight: bold; }
 .listBlock { width:45%; }
+
+/* ===== スマホ向けレスポンシブ対応 ===== */
+@media (max-width: 768px) {
+  #listsContainer {
+    flex-direction: column;   /* 縦に並べる */
+    gap: 20px;
+  }
+  .listBlock {
+    width: 100%;             /* 横幅いっぱいに */
+  }
+  body {
+    font-size: 16px;          /* 読みやすい文字サイズ */
+    margin: 10px;
+  }
+  button {
+    width: 100%;              /* ボタンを画面幅に合わせる */
+    box-sizing: border-box;
+  }
+  ul {
+    padding-left: 20px;
+  }
+}
 </style>
 </head>
 <body>
