@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ラジオ聴取管理 version5.0 (過去分反映＋更新ボタン)</title>
+<title>ラジオ聴取管理 version5.2 (履歴管理+過去判定強化)</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0078ff">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
@@ -66,6 +66,13 @@ input[type=checkbox] { transform: scale(1.2); margin-right: 5px; }
 .passwordBox button:hover { transform: translateY(-2px); box-shadow: 0 6px 14px rgba(0,0,0,0.25); }
 #passError { color: #f87171; font-size: 0.9em; min-height: 1.2em; }
 @keyframes fadeInScale { from { opacity:0; transform: scale(0.9);} to { opacity:1; transform: scale(1);} }
+
+/* 疑似遷移ビュー */
+#historyView {
+  display: none;
+  padding: 20px;
+}
+#historyView h2 { margin-top:0; }
 </style>
 </head>
 <body>
@@ -78,15 +85,15 @@ input[type=checkbox] { transform: scale(1.2); margin-right: 5px; }
     <button id="passwordBtn">認証</button>
   </div>
 </div>
+
 <header>
   <h1>ラジオ聴取管理</h1>
-  <p>version5.0</p>
+  <p>version5.2 (履歴管理+過去判定強化)</p>
 </header>
-<main>
-  <!-- ★追加: 更新ボタン -->
-  <button onclick="reloadApp()">アプリを更新</button>
 
+<main id="mainView">
   <button onclick="updateList()">今日の更新分を追加（手動）</button>
+  <button onclick="showHistoryView()">履歴を見る</button>
   <label>テスト日付選択: <input type="date" id="testDate"></label>
   <button onclick="testUpdate()">テスト実行</button>
   <button onclick="confirmListened()">チェックした番組を聴取済みにする</button>
@@ -101,6 +108,13 @@ input[type=checkbox] { transform: scale(1.2); margin-right: 5px; }
     <div class="card"><h2>今日の聴取履歴</h2><ul id="history"></ul></div>
   </div>
 </main>
+
+<div id="historyView">
+  <h2>番組ごとの最終聴取履歴</h2>
+  <ul id="lastList"></ul>
+  <button onclick="closeHistoryView()">戻る</button>
+</div>
+
 <script type="module">
 const ACCESS_PASSWORD = "Radio";
 const overlay = document.getElementById("passwordOverlay");
@@ -120,13 +134,9 @@ function checkPassword() {
   }
 }
 
-window.reloadApp = function() {
-  location.reload();
-}
-
 function initApp() {
   import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js").then(({ initializeApp })=>{
-    import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js").then(({ getFirestore, doc, setDoc, onSnapshot })=>{
+    import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js").then(({ getFirestore, doc, setDoc, onSnapshot, getDoc })=>{
       const firebaseConfig = {
         apiKey: "AIzaSyB6vL4mDXFR434hlVMqE0D_TpwfDiIoqwo",
         authDomain: "radio-list1.firebaseapp.com",
@@ -164,11 +174,7 @@ function initApp() {
         { name: "かふぇどうき", type: "evenWeek", weekday: 2, archiveWarnDays: 2 }
       ];
 
-      let unlistened = [];
-      let missedList = [];
-      let todayHistory = [];
-      let historyDate = "";
-      let lastListenedDates = {};
+      let unlistened = [], missedList = [], todayHistory = [], historyDate = "", lastListenedDates = {};
 
       onSnapshot(sharedDoc, snapshot => {
         if (snapshot.exists()) {
@@ -178,17 +184,16 @@ function initApp() {
           todayHistory = data.todayHistory || [];
           historyDate = data.historyDate || "";
           lastListenedDates = data.lastListenedDates || {};
-
           const today = new Date().toISOString().split('T')[0];
           if (historyDate !== today) {
             todayHistory = [];
             historyDate = today;
             saveData();
           }
-          checkMissedEpisodes();
+          checkPastUnlistened(); // 過去分も未聴取に反映
         } else {
           historyDate = new Date().toISOString().split('T')[0];
-          setDoc(sharedDoc, { unlistened: [], missedList: [], todayHistory: [], historyDate, lastListenedDates: {} });
+          setDoc(sharedDoc, { unlistened: [], missedList: [], todayHistory: [], historyDate, lastListenedDates:{} });
         }
         render();
       });
@@ -197,99 +202,84 @@ function initApp() {
         setDoc(sharedDoc, { unlistened, missedList, todayHistory, historyDate, lastListenedDates });
       }
 
-      function getNextReleaseDate(program, fromDate=new Date()) {
+      function confirmListened(){
+        const today = new Date().toISOString().split('T')[0];
+        document.querySelectorAll("#list input[type=checkbox]:checked").forEach(cb=>{
+          const idx = parseInt(cb.dataset.index);
+          const name = unlistened[idx];
+          todayHistory.push(name);
+          lastListenedDates[name] = today; // 番組ごとの最終聴取日を更新
+        });
+        unlistened = unlistened.filter(p=>!todayHistory.includes(p));
+        saveData();
+      }
+      window.confirmListened = confirmListened;
+
+      function getNextReleaseDate(program, fromDate=new Date()){
         let testDate=new Date(fromDate);
-        for(let i=0;i<28;i++){
+        for(let i=0;i<28;i++){ 
           if(isProgramToday(program,testDate)){
-            if(testDate.toDateString()===fromDate.toDateString()){
-              testDate.setDate(testDate.getDate()+1);
-              continue;
+            if(testDate.toDateString()===fromDate.toDateString()){ 
+              testDate.setDate(testDate.getDate()+1); 
+              continue; 
             }
             return new Date(testDate);
-          }
+          } 
           testDate.setDate(testDate.getDate()+1);
-        }
+        } 
         return null;
       }
 
-      function getLastReleaseDate(program, fromDate=new Date()) {
-        let testDate=new Date(fromDate);
-        for(let i=0;i<28;i++){
-          if(isProgramToday(program,testDate)) return new Date(testDate);
-          testDate.setDate(testDate.getDate()-1);
-        }
-        return null;
-      }
-
-      function daysUntilNext(program){
-        const nextDate=getNextReleaseDate(program);
-        return !nextDate?"-":Math.ceil((nextDate-new Date())/(1000*60*60*24));
-      }
-
-      function isWarning(program){
-        if(!program)return false;
-        const diffDays=Math.ceil((getNextReleaseDate(program)-new Date())/(1000*60*60*24));
-        return diffDays>0&&diffDays<=program.archiveWarnDays;
-      }
-
-      function checkMissedEpisodes() {
+      function checkPastUnlistened(){
         const today = new Date();
-        programs.forEach(prog=>{
-          const lastRelease = getLastReleaseDate(prog, today);
-          if (!lastRelease) return;
-          const progName = prog.name;
-          const lastListened = lastListenedDates[progName] ? new Date(lastListenedDates[progName]) : null;
-          if (!lastListened || lastListened < lastRelease) {
-            if (!unlistened.includes(progName)) unlistened.push(progName);
+        programs.forEach(program=>{
+          const prevRelease = getPrevReleaseDate(program, today);
+          if(prevRelease){
+            const progLast = lastListenedDates[program.name];
+            if(!progLast || new Date(progLast) < prevRelease){
+              if(!unlistened.includes(program.name)) unlistened.push(program.name);
+            }
           }
         });
         saveData();
       }
 
+      function getPrevReleaseDate(program, refDate=new Date()){
+        for(let d=new Date(refDate); d>=new Date(refDate.getTime()-28*24*60*60*1000); d.setDate(d.getDate()-1)){
+          if(isProgramToday(program, d)) return new Date(d);
+        }
+        return null;
+      }
+
       function render(){
-        const listElem=document.getElementById("list");
-        const missedElem=document.getElementById("missed");
-        const histElem=document.getElementById("history");
-        const progElem=document.getElementById("allPrograms");
-        listElem.innerHTML=""; missedElem.innerHTML=""; histElem.innerHTML=""; progElem.innerHTML="";
-        [...unlistened].sort((a,b)=>{
-          const da=daysUntilNext(programs.find(x=>x.name===a));
-          const db=daysUntilNext(programs.find(x=>x.name===b));
-          return (da==="-"?9999:da)-(db==="-"?9999:db);
-        }).forEach(p=>{
-          const program=programs.find(x=>x.name===p);
-          const icon=isWarning(program)?"⚠️ ":"";
+        const listElem=document.getElementById("list"),
+              missedElem=document.getElementById("missed"),
+              histElem=document.getElementById("history"),
+              progElem=document.getElementById("allPrograms"),
+              lastListElem=document.getElementById("lastList");
+        listElem.innerHTML=""; missedElem.innerHTML=""; histElem.innerHTML=""; progElem.innerHTML=""; lastListElem.innerHTML="";
+        [...unlistened].sort((a,b)=>a.localeCompare(b))
+          .forEach(p=>{const li=document.createElement("li");li.innerHTML=`<input type="checkbox" data-index="${unlistened.indexOf(p)}"><span>${p}</span>`;listElem.appendChild(li);});
+        missedList.forEach((m,i)=>{const li=document.createElement("li");li.innerHTML=`${m} <button onclick="deleteMissed(${i})">削除</button>`;missedElem.appendChild(li);});
+        todayHistory.forEach((h,i)=>{const li=document.createElement("li");li.innerHTML=`${h} <button onclick="deleteHistory(${i})">削除</button>`;histElem.appendChild(li);});
+        programs.forEach(p=>{const li=document.createElement("li");li.innerHTML=`${p.name} <button onclick="addManual('${p.name}')">追加</button>`;progElem.appendChild(li);});
+        for(let [name,date] of Object.entries(lastListenedDates)){
           const li=document.createElement("li");
-          li.innerHTML=`<input type="checkbox" data-index="${unlistened.indexOf(p)}"><span>${icon}${p} (次回${daysUntilNext(program)}日後)</span>`;
-          listElem.appendChild(li);
-        });
-        missedList.forEach((m,i)=>{
-          const li=document.createElement("li");
-          li.innerHTML=`${m} <button onclick="deleteMissed(${i})">削除</button>`;
-          missedElem.appendChild(li);
-        });
-        todayHistory.forEach((h,i)=>{
-          const li=document.createElement("li");
-          li.innerHTML=`${h} <button onclick="deleteHistory(${i})">削除</button>`;
-          histElem.appendChild(li);
-        });
-        programs.forEach(p=>{
-          const li=document.createElement("li");
-          li.innerHTML=`${p.name} <button onclick="addManual('${p.name}')">追加</button>`;
-          progElem.appendChild(li);
-        });
+          li.textContent = `${name}: ${date}`;
+          lastListElem.appendChild(li);
+        }
       }
 
       window.updateList=function(){
         const today=new Date();
         programs.forEach(prog=>{
           if(isProgramToday(prog,today)){
-            if(!unlistened.includes(prog.name)&&!todayHistory.includes(prog.name)){
+            if(!unlistened.includes(prog.name) && !todayHistory.includes(prog.name)){
               unlistened.push(prog.name);
             }
           }
         });
-        checkMissedEpisodes();
+        checkPastUnlistened();
         saveData();
       }
 
@@ -297,44 +287,16 @@ function initApp() {
         const sec=document.getElementById("manualSection");
         sec.style.display=sec.style.display==="none"?"block":"none";
       }
-
       window.testUpdate=function(){
         const dateStr=document.getElementById("testDate").value;
-        if(!dateStr){ alert("日付を選んでください"); return; }
+        if(!dateStr){alert("日付を選んでください");return;}
         const testDate=new Date(dateStr);
         let list=programs.filter(p=>isProgramToday(p,testDate)).map(p=>p.name);
         alert(`選択した日(${dateStr})に更新される番組:\n${list.length?list.join(", "):"なし"}`);
       }
-
-      window.addManual=function(name){
-        if(!unlistened.includes(name)){
-          unlistened.push(name);
-          saveData();
-        } else {
-          alert("すでに未聴取リストにあります");
-        }
-      }
-
-      window.confirmListened=function(){
-        document.querySelectorAll("#list input[type=checkbox]:checked").forEach(cb=>{
-          const idx=parseInt(cb.dataset.index);
-          const name=unlistened[idx];
-          todayHistory.push(name);
-          lastListenedDates[name]=new Date().toISOString().split('T')[0];
-        });
-        unlistened=unlistened.filter(p=>!todayHistory.includes(p));
-        saveData();
-      }
-
-      window.deleteHistory=function(i){
-        todayHistory.splice(i,1);
-        saveData();
-      }
-
-      window.deleteMissed=function(i){
-        missedList.splice(i,1);
-        saveData();
-      }
+      window.addManual=function(name){if(!unlistened.includes(name)){unlistened.push(name);saveData();}else{alert("すでに未聴取リストにあります");}}
+      window.deleteHistory=function(i){todayHistory.splice(i,1);saveData();}
+      window.deleteMissed=function(i){missedList.splice(i,1);saveData();}
 
       function isProgramToday(program,dateObj){
         const weekday=dateObj.getDay()===0?7:dateObj.getDay();
@@ -351,21 +313,20 @@ function initApp() {
         }
         return false;
       }
-
-      function getYearWeek(date){
-        const start=new Date(date.getFullYear(),0,1);
-        const diff=(date-start+((start.getTimezoneOffset()-date.getTimezoneOffset())*60000));
-        return Math.ceil((diff/86400000+start.getDay()+1)/7);
-      }
-
-      function isLastWeekday(date){
-        const month=date.getMonth();
-        const nextWeek=new Date(date);
-        nextWeek.setDate(date.getDate()+7);
-        return nextWeek.getMonth()!==month;
-      }
+      function getYearWeek(date){const start=new Date(date.getFullYear(),0,1);const diff=(date-start+((start.getTimezoneOffset()-date.getTimezoneOffset())*60000));return Math.ceil((diff/86400000+start.getDay()+1)/7);}
+      function isLastWeekday(date){const month=date.getMonth();const nextWeek=new Date(date);nextWeek.setDate(date.getDate()+7);return nextWeek.getMonth()!==month;}
     });
   });
+}
+
+// 疑似遷移処理
+window.showHistoryView = function(){
+  document.getElementById("mainView").style.display="none";
+  document.getElementById("historyView").style.display="block";
+}
+window.closeHistoryView = function(){
+  document.getElementById("historyView").style.display="none";
+  document.getElementById("mainView").style.display="block";
 }
 </script>
 <script>
