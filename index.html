@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ラジオ聴取管理 version5.2 (履歴管理+過去判定強化)</title>
+<title>ラジオ聴取管理 version5.3 (履歴管理+過去判定強化)</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0078ff">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
@@ -88,7 +88,7 @@ input[type=checkbox] { transform: scale(1.2); margin-right: 5px; }
 
 <header>
   <h1>ラジオ聴取管理</h1>
-  <p>version5.2 (履歴管理+過去判定強化)</p>
+  <p>version5.3</p>
 </header>
 
 <main id="mainView">
@@ -258,8 +258,31 @@ function initApp() {
               progElem=document.getElementById("allPrograms"),
               lastListElem=document.getElementById("lastList");
         listElem.innerHTML=""; missedElem.innerHTML=""; histElem.innerHTML=""; progElem.innerHTML=""; lastListElem.innerHTML="";
-        [...unlistened].sort((a,b)=>a.localeCompare(b))
-          .forEach(p=>{const li=document.createElement("li");li.innerHTML=`<input type="checkbox" data-index="${unlistened.indexOf(p)}"><span>${p}</span>`;listElem.appendChild(li);});
+       [...unlistened].sort((a, b) => {
+  const progA = programs.find(x => x.name === a);
+  const progB = programs.find(x => x.name === b);
+  const nextA = progA ? getNextReleaseDate(progA, new Date()) : null;
+  const nextB = progB ? getNextReleaseDate(progB, new Date()) : null;
+  const daysA = nextA ? Math.ceil((nextA - new Date()) / (1000*60*60*24)) : 999;
+  const daysB = nextB ? Math.ceil((nextB - new Date()) / (1000*60*60*24)) : 999;
+  if (daysA === daysB) return a.localeCompare(b); // 同じ残り日数なら名前順
+  return daysA - daysB; // 残り日数が少ない順
+})
+  .forEach(p=>{
+    const program = programs.find(x => x.name === p);
+    let daysLeftText = "";
+    if (program) {
+      const nextDate = getNextReleaseDate(program, new Date());
+      if (nextDate) {
+        const diffDays = Math.ceil((nextDate - new Date()) / (1000 * 60 * 60 * 24));
+        const colorStyle = diffDays <= 2 ? 'style="color:red;"' : '';
+        daysLeftText = ` <span ${colorStyle}>(あと${diffDays}日)</span>`;
+      }
+    }
+    const li=document.createElement("li");
+    li.innerHTML=`<input type="checkbox" data-index="${unlistened.indexOf(p)}"><span>${p}</span>${daysLeftText}`;
+    listElem.appendChild(li);
+  });
         missedList.forEach((m,i)=>{const li=document.createElement("li");li.innerHTML=`${m} <button onclick="deleteMissed(${i})">削除</button>`;missedElem.appendChild(li);});
         todayHistory.forEach((h,i)=>{const li=document.createElement("li");li.innerHTML=`${h} <button onclick="deleteHistory(${i})">削除</button>`;histElem.appendChild(li);});
         programs.forEach(p=>{const li=document.createElement("li");li.innerHTML=`${p.name} <button onclick="addManual('${p.name}')">追加</button>`;progElem.appendChild(li);});
