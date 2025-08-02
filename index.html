@@ -176,27 +176,39 @@ function initApp() {
 
       let unlistened = [], missedList = [], todayHistory = [], historyDate = "", lastListenedDates = {};
 
-      onSnapshot(sharedDoc, snapshot => {
-        if (snapshot.exists()) {
-          const data = snapshot.data();
-          unlistened = data.unlistened || [];
-          missedList = data.missedList || [];
-          todayHistory = data.todayHistory || [];
-          historyDate = data.historyDate || "";
-          lastListenedDates = data.lastListenedDates || {};
-          const today = new Date().toISOString().split('T')[0];
-          if (historyDate !== today) {
-            todayHistory = [];
-            historyDate = today;
-            saveData();
-          }
-          checkPastUnlistened(); // 過去分も未聴取に反映
-        } else {
-          historyDate = new Date().toISOString().split('T')[0];
-          setDoc(sharedDoc, { unlistened: [], missedList: [], todayHistory: [], historyDate, lastListenedDates:{} });
-        }
-        render();
-      });
+onSnapshot(sharedDoc, snapshot => {
+  if (snapshot.exists()) {
+    const data = snapshot.data();
+    unlistened = data.unlistened || [];
+    missedList = data.missedList || [];
+    todayHistory = data.todayHistory || [];
+    historyDate = data.historyDate || "";
+    lastListenedDates = data.lastListenedDates || {};
+
+    // --- JST対応の日付取得 ---
+    function getLocalDateString() {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    const today = getLocalDateString();  // ← JSTで日付取得
+
+    if (historyDate !== today) {
+      todayHistory = [];
+      historyDate = today;
+      saveData();
+    }
+
+    checkPastUnlistened(); // 過去分も未聴取に反映
+  } else {
+    historyDate = new Date().toISOString().split('T')[0];
+    setDoc(sharedDoc, { unlistened: [], missedList: [], todayHistory: [], historyDate, lastListenedDates:{} });
+  }
+  render();
+});
 
       function saveData() {
         setDoc(sharedDoc, { unlistened, missedList, todayHistory, historyDate, lastListenedDates });
@@ -361,3 +373,4 @@ if ('serviceWorker' in navigator) {
 </script>
 </body>
 </html>
+
