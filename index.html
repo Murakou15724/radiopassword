@@ -92,7 +92,7 @@ input[type=checkbox] { transform: scale(1.2); margin-right: 5px; }
 </header>
 
 <main id="mainView">
-  <button onclick="updateList()">今日の更新分を追加（手動）</button>
+  <button onclick="updateList()">未聴取リストを再チェック</button>
   <button onclick="showHistoryView()">履歴を見る</button>
   <label>テスト日付選択: <input type="date" id="testDate"></label>
   <button onclick="testUpdate()">テスト実行</button>
@@ -305,17 +305,34 @@ onSnapshot(sharedDoc, snapshot => {
         }
       }
 
-      window.updateList=function(){
-        const today=new Date();
-        programs.forEach(prog=>{
-          if(isProgramToday(prog,today)){
-            if(!unlistened.includes(prog.name) && !todayHistory.includes(prog.name)){
+      window.updateList = function(){
+        const today = new Date();
+        let addedCount = 0;
+
+        // --- 今日分チェック ---
+        programs.forEach(prog => {
+          if (isProgramToday(prog, today)) {
+            if (!unlistened.includes(prog.name) && !todayHistory.includes(prog.name)) {
               unlistened.push(prog.name);
+              addedCount++;
             }
           }
         });
+
+        // --- 過去分チェック ---
+        const beforeCount = unlistened.length;
         checkPastUnlistened();
+        const afterCount = unlistened.length;
+        addedCount += (afterCount - beforeCount);
+
         saveData();
+
+        // --- ポップアップ ---
+        if (addedCount === 0) {
+          alert("追加する番組はありませんでした");
+        } else {
+          alert(`${addedCount}件の番組を追加しました`);
+        }
       }
 
       window.toggleManual=function(){
@@ -323,6 +340,7 @@ onSnapshot(sharedDoc, snapshot => {
         sec.style.display=sec.style.display==="none"?"block":"none";
       }
       window.testUpdate=function(){
+
         const dateStr=document.getElementById("testDate").value;
         if(!dateStr){alert("日付を選んでください");return;}
         const testDate=new Date(dateStr);
@@ -373,4 +391,5 @@ if ('serviceWorker' in navigator) {
 </script>
 </body>
 </html>
+
 
