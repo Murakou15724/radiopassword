@@ -128,18 +128,32 @@ function checkPassword() {
   if (passInput.value === ACCESS_PASSWORD) {
     overlay.style.display = "none";
 
-    // Firebase Auth を読み込んで匿名ログインしてから initApp を呼ぶ
-    import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js").then(({ getAuth, signInAnonymously }) => {
-      const auth = getAuth();
-      signInAnonymously(auth)
-        .then(() => {
-          console.log("匿名ログイン成功");
-          initApp();  // 認証が済んだあとにFirestoreアクセスOK
-        })
-        .catch((error) => {
-          console.error("匿名ログイン失敗", error);
-          alert("Firebase認証に失敗しました。ネットワーク接続を確認してください。");
-        });
+    // firebase-app を読み込んでから initializeApp → それから firebase-auth で認証
+    import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js").then(({ initializeApp }) => {
+      const firebaseConfig = {
+        apiKey: "AIzaSyB6vL4mDXFR434hlVMqE0D_TpwfDiIoqwo",
+        authDomain: "radio-list1.firebaseapp.com",
+        projectId: "radio-list1",
+        storageBucket: "radio-list1.firebasestorage.app",
+        messagingSenderId: "421606279790",
+        appId: "1:421606279790:web:4b0387d110b57c10ebf47f",
+        measurementId: "G-SBLSZH9CDS"
+      };
+      const app = initializeApp(firebaseConfig); // ✅ 先に初期化！
+
+      import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js").then(({ getAuth, signInAnonymously }) => {
+        const auth = getAuth(app); // ✅ 初期化済みappを渡す
+        signInAnonymously(auth)
+          .then(() => {
+            console.log("匿名ログイン成功");
+            initApp(); // ← 認証が済んだあとにFirestoreアクセスOK
+          })
+          .catch((error) => {
+            console.error("匿名ログイン失敗", error);
+            alert("Firebase認証に失敗しました。ネットワーク接続を確認してください。");
+          });
+      });
+
     });
 
   } else {
@@ -406,6 +420,7 @@ if ('serviceWorker' in navigator) {
 </script>
 </body>
 </html>
+
 
 
 
