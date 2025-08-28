@@ -127,12 +127,27 @@ passInput.addEventListener("keypress", e => { if(e.key === "Enter") checkPasswor
 function checkPassword() {
   if (passInput.value === ACCESS_PASSWORD) {
     overlay.style.display = "none";
-    initApp();
+
+    // Firebase Auth を読み込んで匿名ログインしてから initApp を呼ぶ
+    import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js").then(({ getAuth, signInAnonymously }) => {
+      const auth = getAuth();
+      signInAnonymously(auth)
+        .then(() => {
+          console.log("匿名ログイン成功");
+          initApp();  // 認証が済んだあとにFirestoreアクセスOK
+        })
+        .catch((error) => {
+          console.error("匿名ログイン失敗", error);
+          alert("Firebase認証に失敗しました。ネットワーク接続を確認してください。");
+        });
+    });
+
   } else {
     passError.textContent = "パスワードが違います";
     passInput.value = "";
   }
 }
+
 
 function initApp() {
   import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js").then(({ initializeApp })=>{
@@ -391,5 +406,6 @@ if ('serviceWorker' in navigator) {
 </script>
 </body>
 </html>
+
 
 
