@@ -236,7 +236,7 @@ onSnapshot(sharedDoc, snapshot => {
       saveData();
     }
 
-    // ★ 次の更新日を迎えた未聴取 → 聞き逃しへ
+    // ★ 追加：まず旧回を聞き逃しへ
     rollOverMissed();
     // 過去分も未聴取に反映
     checkPastUnlistened();
@@ -302,42 +302,50 @@ onSnapshot(sharedDoc, snapshot => {
         return null;
       }
 
-      // ★ コア：未聴取のまま次の更新日を迎えたものを聞き逃しへ移す
-      function rollOverMissed() {
-        const now = floorToDate(new Date());
-        const original = [...unlistened]; // 安全のためコピー
-        original.forEach(name => {
-          const program = programs.find(p => p.name === name);
-          if (!program) return;
+// ★ 追加ここから：未聴取のまま次の更新日を迎えた旧回を「聞き逃し」へ
+function rollOverMissed() {
+  const now = floorToDate(new Date());
+  const original = [...unlistened]; // 未聴取をコピーして安全に走査
 
-          const prev = getPrevReleaseDate(program, now);
-          if (!prev) return;
+  original.forEach(name => {
+    const program = programs.find(p => p.name === name);
+    if (!program) return;
 
-          const nextAfterPrev = getNextReleaseDate(program, prev);
-          if (!nextAfterPrev) return;
+    // 直近の更新日（当日分を含む）＝ prev1
+    const prev1 = getPrevReleaseDate(program, now);
+    if (!prev1) return;
 
-          const nextDay = floorToDate(nextAfterPrev);
+    // その1つ前（＝聞き逃し候補）＝ prev2
+    const dayBeforePrev1 = new Date(prev1);
+    dayBeforePrev1.setDate(prev1.getDate() - 1);
+    const prev2 = getPrevReleaseDate(program, dayBeforePrev1);
+    if (!prev2) return;
 
-          // 「次の更新日が来た or 過ぎた」＝ nextDay <= 今日
-          if (nextDay <= now) {
-            const y = prev.getFullYear();
-            const m = String(prev.getMonth() + 1).padStart(2, '0');
-            const d = String(prev.getDate()).padStart(2, '0');
-            const label = `${name}（${y}-${m}-${d}分を聞き逃し）`;
-            if (!missedList.includes(label)) missedList.push(label);
+    // prev2 の次回出現日は prev1（例：8/25 → 9/8）
+    const nextAfterPrev2 = getNextReleaseDate(program, prev2);
+    if (!nextAfterPrev2) return;
 
-            // 未聴取からこの古い分を外す（番組名は1つしかないためremove）
-            unlistened = unlistened.filter(x => x !== name);
+    // すでに次回（prev1）を迎えていたら、prev2 は聞き逃し
+    if (floorToDate(nextAfterPrev2) <= now) {
+      const y = prev2.getFullYear();
+      const m = String(prev2.getMonth() + 1).padStart(2, '0');
+      const d = String(prev2.getDate()).padStart(2, '0');
+      const label = `${name}（${y}-${m}-${d}分を聞き逃し）`;
+      if (!missedList.includes(label)) missedList.push(label);
 
-            // もし「今日が更新日」なら、今日分は未聴取へ残す必要がある
-            // ただし、後段の checkPastUnlistened() / updateList() でも追加されるため重複を避ける
-            if (isProgramToday(program, now) && !unlistened.includes(name)) {
-              unlistened.push(name);
-            }
-          }
-        });
-        saveData();
+      // 古い分を未聴取から外す（番組名は1つずつ想定）
+      unlistened = unlistened.filter(x => x !== name);
+
+      // もし今日が更新日なら、当日分は未聴取に残す
+      if (isProgramToday(program, now) && !unlistened.includes(name)) {
+        unlistened.push(name);
       }
+    }
+  });
+
+  saveData();
+}
+// ★ 追加ここまで
 
       function render(){
         const listElem=document.getElementById("list"),
@@ -488,3 +496,4 @@ if ('serviceWorker' in navigator) {
 </script>
 </body>
 </html>
+
