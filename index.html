@@ -128,7 +128,6 @@ function checkPassword() {
   if (passInput.value === ACCESS_PASSWORD) {
     overlay.style.display = "none";
 
-    // firebase-app を読み込んでから initializeApp → それから firebase-auth で認証
     import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js").then(({ initializeApp }) => {
       const firebaseConfig = {
         apiKey: "AIzaSyB6vL4mDXFR434hlVMqE0D_TpwfDiIoqwo",
@@ -139,14 +138,14 @@ function checkPassword() {
         appId: "1:421606279790:web:4b0387d110b57c10ebf47f",
         measurementId: "G-SBLSZH9CDS"
       };
-      const app = initializeApp(firebaseConfig); // ✅ 先に初期化！
+      const app = initializeApp(firebaseConfig);
 
       import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js").then(({ getAuth, signInAnonymously }) => {
-        const auth = getAuth(app); // ✅ 初期化済みappを渡す
+        const auth = getAuth(app);
         signInAnonymously(auth)
           .then(() => {
             console.log("匿名ログイン成功");
-            initApp(); // ← 認証が済んだあとにFirestoreアクセスOK
+            initApp(); // 認証後にFirestoreアクセス
           })
           .catch((error) => {
             console.error("匿名ログイン失敗", error);
@@ -205,6 +204,21 @@ function initApp() {
 
       let unlistened = [], missedList = [], todayHistory = [], historyDate = "", lastListenedDates = {};
 
+      // ★ 共通のJST日付（YYYY-MM-DD）
+      function getLocalDateString() {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      }
+      // ★ 日付だけ比較したいときに時刻を0:00へ
+      function floorToDate(d) {
+        const x = new Date(d);
+        x.setHours(0,0,0,0);
+        return x;
+      }
+
 onSnapshot(sharedDoc, snapshot => {
   if (snapshot.exists()) {
     const data = snapshot.data();
@@ -214,16 +228,7 @@ onSnapshot(sharedDoc, snapshot => {
     historyDate = data.historyDate || "";
     lastListenedDates = data.lastListenedDates || {};
 
-    // --- JST対応の日付取得 ---
-    function getLocalDateString() {
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const day = String(now.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    }
-
-    const today = getLocalDateString();  // ← JSTで日付取得
+    const today = getLocalDateString();
 
     if (historyDate !== today) {
       todayHistory = [];
@@ -231,7 +236,10 @@ onSnapshot(sharedDoc, snapshot => {
       saveData();
     }
 
-    checkPastUnlistened(); // 過去分も未聴取に反映
+    // ★ 次の更新日を迎えた未聴取 → 聞き逃しへ
+    rollOverMissed();
+    // 過去分も未聴取に反映
+    checkPastUnlistened();
   } else {
     historyDate = new Date().toISOString().split('T')[0];
     setDoc(sharedDoc, { unlistened: [], missedList: [], todayHistory: [], historyDate, lastListenedDates:{} });
@@ -243,11 +251,13 @@ onSnapshot(sharedDoc, snapshot => {
         setDoc(sharedDoc, { unlistened, missedList, todayHistory, historyDate, lastListenedDates });
       }
 
+      // ★ 聴取確定：JSTのYYYY-MM-DDで保存
       function confirmListened(){
-        const today = new Date().toISOString().split('T')[0];
+        const today = getLocalDateString();
         document.querySelectorAll("#list input[type=checkbox]:checked").forEach(cb=>{
           const idx = parseInt(cb.dataset.index);
           const name = unlistened[idx];
+          if (!name) return;
           todayHistory.push(name);
           lastListenedDates[name] = today; // 番組ごとの最終聴取日を更新
         });
@@ -258,16 +268,16 @@ onSnapshot(sharedDoc, snapshot => {
 
       function getNextReleaseDate(program, fromDate=new Date()){
         let testDate=new Date(fromDate);
-        for(let i=0;i<28;i++){ 
+        for(let i=0;i<28;i++){
           if(isProgramToday(program,testDate)){
-            if(testDate.toDateString()===fromDate.toDateString()){ 
-              testDate.setDate(testDate.getDate()+1); 
-              continue; 
+            if(testDate.toDateString()===fromDate.toDateString()){
+              testDate.setDate(testDate.getDate()+1);
+              continue;
             }
             return new Date(testDate);
-          } 
+          }
           testDate.setDate(testDate.getDate()+1);
-        } 
+        }
         return null;
       }
 
@@ -292,6 +302,43 @@ onSnapshot(sharedDoc, snapshot => {
         return null;
       }
 
+      // ★ コア：未聴取のまま次の更新日を迎えたものを聞き逃しへ移す
+      function rollOverMissed() {
+        const now = floorToDate(new Date());
+        const original = [...unlistened]; // 安全のためコピー
+        original.forEach(name => {
+          const program = programs.find(p => p.name === name);
+          if (!program) return;
+
+          const prev = getPrevReleaseDate(program, now);
+          if (!prev) return;
+
+          const nextAfterPrev = getNextReleaseDate(program, prev);
+          if (!nextAfterPrev) return;
+
+          const nextDay = floorToDate(nextAfterPrev);
+
+          // 「次の更新日が来た or 過ぎた」＝ nextDay <= 今日
+          if (nextDay <= now) {
+            const y = prev.getFullYear();
+            const m = String(prev.getMonth() + 1).padStart(2, '0');
+            const d = String(prev.getDate()).padStart(2, '0');
+            const label = `${name}（${y}-${m}-${d}分を聞き逃し）`;
+            if (!missedList.includes(label)) missedList.push(label);
+
+            // 未聴取からこの古い分を外す（番組名は1つしかないためremove）
+            unlistened = unlistened.filter(x => x !== name);
+
+            // もし「今日が更新日」なら、今日分は未聴取へ残す必要がある
+            // ただし、後段の checkPastUnlistened() / updateList() でも追加されるため重複を避ける
+            if (isProgramToday(program, now) && !unlistened.includes(name)) {
+              unlistened.push(name);
+            }
+          }
+        });
+        saveData();
+      }
+
       function render(){
         const listElem=document.getElementById("list"),
               missedElem=document.getElementById("missed"),
@@ -306,8 +353,8 @@ onSnapshot(sharedDoc, snapshot => {
   const nextB = progB ? getNextReleaseDate(progB, new Date()) : null;
   const daysA = nextA ? Math.ceil((nextA - new Date()) / (1000*60*60*24)) : 999;
   const daysB = nextB ? Math.ceil((nextB - new Date()) / (1000*60*60*24)) : 999;
-  if (daysA === daysB) return a.localeCompare(b); // 同じ残り日数なら名前順
-  return daysA - daysB; // 残り日数が少ない順
+  if (daysA === daysB) return a.localeCompare(b);
+  return daysA - daysB;
 })
   .forEach(p=>{
     const program = programs.find(x => x.name === p);
@@ -324,9 +371,26 @@ onSnapshot(sharedDoc, snapshot => {
     li.innerHTML=`<input type="checkbox" data-index="${unlistened.indexOf(p)}"><span>${p}</span>${daysLeftText}`;
     listElem.appendChild(li);
   });
-        missedList.forEach((m,i)=>{const li=document.createElement("li");li.innerHTML=`${m} <button onclick="deleteMissed(${i})">削除</button>`;missedElem.appendChild(li);});
-        todayHistory.forEach((h,i)=>{const li=document.createElement("li");li.innerHTML=`${h} <button onclick="deleteHistory(${i})">削除</button>`;histElem.appendChild(li);});
-        programs.forEach(p=>{const li=document.createElement("li");li.innerHTML=`${p.name} <button onclick="addManual('${p.name}')">追加</button>`;progElem.appendChild(li);});
+
+        // 聞き逃し（1件ずつ削除可能）
+        missedList.forEach((m,i)=>{
+          const li=document.createElement("li");
+          li.innerHTML=`${m} <button onclick="deleteMissed(${i})">削除</button>`;
+          missedElem.appendChild(li);
+        });
+
+        todayHistory.forEach((h,i)=>{
+          const li=document.createElement("li");
+          li.innerHTML=`${h} <button onclick="deleteHistory(${i})">削除</button>`;
+          histElem.appendChild(li);
+        });
+
+        programs.forEach(p=>{
+          const li=document.createElement("li");
+          li.innerHTML=`${p.name} <button onclick="addManual('${p.name}')">追加</button>`;
+          progElem.appendChild(li);
+        });
+
         for(let [name,date] of Object.entries(lastListenedDates)){
           const li=document.createElement("li");
           li.textContent = `${name}: ${date}`;
@@ -334,11 +398,16 @@ onSnapshot(sharedDoc, snapshot => {
         }
       }
 
+      // ★ 再チェック時は 1)ロールオーバー → 2)今日分追加 → 3)過去分補完 の順で
       window.updateList = function(){
-        const today = new Date();
         let addedCount = 0;
 
-        // --- 今日分チェック ---
+        // 1) 次の更新日を迎えた未聴取を聞き逃しへ
+        rollOverMissed();
+
+        const today = new Date();
+
+        // 2) 今日分チェック
         programs.forEach(prog => {
           if (isProgramToday(prog, today)) {
             if (!unlistened.includes(prog.name) && !todayHistory.includes(prog.name)) {
@@ -348,7 +417,7 @@ onSnapshot(sharedDoc, snapshot => {
           }
         });
 
-        // --- 過去分チェック ---
+        // 3) 過去分チェック
         const beforeCount = unlistened.length;
         checkPastUnlistened();
         const afterCount = unlistened.length;
@@ -356,7 +425,7 @@ onSnapshot(sharedDoc, snapshot => {
 
         saveData();
 
-        // --- ポップアップ ---
+        // ポップアップ
         if (addedCount === 0) {
           alert("追加する番組はありませんでした");
         } else {
@@ -369,7 +438,6 @@ onSnapshot(sharedDoc, snapshot => {
         sec.style.display=sec.style.display==="none"?"block":"none";
       }
       window.testUpdate=function(){
-
         const dateStr=document.getElementById("testDate").value;
         if(!dateStr){alert("日付を選んでください");return;}
         const testDate=new Date(dateStr);
@@ -420,7 +488,3 @@ if ('serviceWorker' in navigator) {
 </script>
 </body>
 </html>
-
-
-
-
